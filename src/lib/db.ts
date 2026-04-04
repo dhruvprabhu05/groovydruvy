@@ -63,8 +63,8 @@ export async function getLatestMarketSummary(): Promise<MarketSummary | null> {
 }
 
 export async function getArticles(): Promise<Article[]> {
-  const { rows } = await sql`SELECT * FROM articles WHERE published_at >= NOW() - INTERVAL '3 weeks' ORDER BY published_at DESC LIMIT 50`;
-  return rows as Article[];
+  const { rows } = await sql`SELECT DISTINCT ON (url) * FROM articles WHERE published_at >= NOW() - INTERVAL '3 weeks' ORDER BY url, published_at DESC`;
+  return (rows as Article[]).sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime()).slice(0, 50);
 }
 
 export async function getRecommendedStocks(): Promise<Stock[]> {
@@ -78,7 +78,7 @@ export async function getWatchlist(): Promise<WatchlistItem[]> {
 }
 
 export async function getWatchlistStocks(): Promise<Stock[]> {
-  const { rows } = await sql`SELECT s.* FROM stocks s INNER JOIN watchlist w ON s.ticker = w.ticker WHERE s.date = (SELECT MAX(date) FROM stocks) ORDER BY w.added_at DESC`;
+  const { rows } = await sql`SELECT DISTINCT ON (s.ticker) s.* FROM stocks s INNER JOIN watchlist w ON s.ticker = w.ticker ORDER BY s.ticker, s.date DESC`;
   return rows as Stock[];
 }
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Article } from "@/lib/db";
 
-const SECTORS = ["all", "tech", "finance", "crypto", "general"];
+const SECTORS = ["all", "tech", "finance", "crypto", "healthcare", "energy", "realestate", "consumer", "general"];
 const TYPES = ["all", "breaking", "earnings", "analyst", "trending", "movers"];
 
 function timeAgo(dateStr: string): string {
@@ -28,16 +28,19 @@ export default function NewsWidget({ articles }: { articles: Article[] }) {
     <div className="card full-width">
       <div className="card-title">Top News</div>
       <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px" }}>
-        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-          <span style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", width: "55px" }}>Sector</span>
-          {SECTORS.map((s) => (
-            <button key={s} className={`filter-btn ${sector === s ? "active" : ""}`} onClick={() => setSector(s)}>
-              {s.charAt(0).toUpperCase() + s.slice(1)}
-            </button>
-          ))}
+        <div className="filter-row">
+          <span style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", minWidth: "55px" }}>Sector</span>
+          {SECTORS.map((s) => {
+            const labels: Record<string, string> = { realestate: "Real Estate" };
+            return (
+              <button key={s} className={`filter-btn ${sector === s ? "active" : ""}`} onClick={() => setSector(s)}>
+                {labels[s] ?? s.charAt(0).toUpperCase() + s.slice(1)}
+              </button>
+            );
+          })}
         </div>
-        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-          <span style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", width: "55px" }}>Type</span>
+        <div className="filter-row">
+          <span style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", minWidth: "55px" }}>Type</span>
           {TYPES.map((t) => (
             <button key={t} className={`filter-btn ${type === t ? "active" : ""}`} onClick={() => setType(t)}>
               {t.charAt(0).toUpperCase() + t.slice(1)}

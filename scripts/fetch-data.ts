@@ -18,9 +18,13 @@ async function fetchJSON(url: string): Promise<any> {
 }
 
 const SECTOR_KEYWORDS: Record<string, string[]> = {
-  tech: ["tech", "AI", "artificial intelligence", "semiconductor", "chip", "software", "SaaS", "cloud", "NVIDIA", "AAPL", "MSFT", "GOOGL", "META", "AMZN", "TSLA"],
-  finance: ["bank", "fed", "interest rate", "inflation", "treasury", "financial", "JPM", "GS", "fintech", "lending"],
-  crypto: ["bitcoin", "crypto", "ethereum", "BTC", "ETH", "blockchain", "defi"],
+  tech: ["tech", "AI", "artificial intelligence", "semiconductor", "chip", "software", "SaaS", "cloud", "NVIDIA", "AAPL", "MSFT", "GOOGL", "META", "AMZN", "TSLA", "cyber", "data center", "machine learning", "robotics", "5G", "quantum"],
+  finance: ["bank", "fed", "interest rate", "inflation", "treasury", "financial", "JPM", "GS", "fintech", "lending", "mortgage", "credit", "loan", "hedge fund", "private equity", "IPO", "SEC", "Wall Street"],
+  crypto: ["bitcoin", "crypto", "ethereum", "BTC", "ETH", "blockchain", "defi", "stablecoin", "altcoin", "NFT", "web3", "solana", "XRP", "dogecoin"],
+  healthcare: ["health", "pharma", "biotech", "FDA", "drug", "medical", "hospital", "vaccine", "clinical trial", "therapeutics", "JNJ", "PFE", "UNH", "ABBV", "MRK", "LLY"],
+  energy: ["oil", "gas", "energy", "solar", "wind", "renewable", "EV", "battery", "nuclear", "OPEC", "petroleum", "XOM", "CVX", "NEE", "ENPH"],
+  realestate: ["real estate", "housing", "mortgage", "REIT", "property", "rent", "commercial real estate", "home sales", "construction"],
+  consumer: ["retail", "consumer", "e-commerce", "Amazon", "Walmart", "Target", "spending", "shopping", "WMT", "TGT", "COST", "NKE", "SBUX", "MCD"],
 };
 
 const TYPE_KEYWORDS: Record<string, string[]> = {
@@ -45,7 +49,21 @@ function classifyType(text: string): string {
   return "breaking";
 }
 
-const COMMON_TICKERS = ["AAPL","MSFT","GOOGL","GOOG","AMZN","META","TSLA","NVDA","AMD","NFLX","CRM","ORCL","INTC","AVGO","QCOM","JPM","GS","MS","BAC","WFC","V","MA","PYPL","SQ","COIN","PLTR","SOFI","ABNB","UBER"];
+const COMMON_TICKERS = [
+  // Tech
+  "AAPL","MSFT","GOOGL","GOOG","AMZN","META","TSLA","NVDA","AMD","NFLX","CRM","ORCL","INTC","AVGO","QCOM","ADBE","CSCO","IBM","NOW","SHOP","SNOW","PANW","CRWD","DDOG","NET","MDB","ZS","FTNT","MRVL","ARM","SMCI","DELL","HPE",
+  // Finance
+  "JPM","GS","MS","BAC","WFC","V","MA","PYPL","SQ","COIN","SOFI","C","AXP","BLK","SCHW","CME","ICE","COF","DFS",
+  // Healthcare
+  "JNJ","PFE","UNH","ABBV","MRK","LLY","TMO","ABT","AMGN","GILD","REGN","MRNA","ISRG","VRTX","BMY",
+  // Energy
+  "XOM","CVX","NEE","ENPH","FSLR","OXY","SLB","COP","EOG","PSX",
+  // Consumer
+  "WMT","TGT","COST","NKE","SBUX","MCD","DIS","CMCSA","HD","LOW","LULU","BKNG","ABNB","UBER",
+  // Crypto-adjacent
+  "PLTR","MSTR","RIOT","MARA","HOOD",
+];
+
 
 function extractTickers(text: string): string { return COMMON_TICKERS.filter((t) => text.includes(t)).join(","); }
 

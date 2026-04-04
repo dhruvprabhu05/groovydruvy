@@ -25,16 +25,16 @@ export default function MarketSummaryBar({ summary }: { summary: MarketSummary |
   ];
   const fg = fearGreedLabel(summary.fear_greed);
   return (
-    <div style={{ display: "flex", gap: "12px", padding: "12px 24px", overflowX: "auto" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "10px", padding: "12px 24px" }}>
       {items.map((item) => (
-        <div key={item.label} className="card" style={{ flex: 1, padding: "10px 14px" }}>
-          <div style={{ fontSize: "10px", color: "var(--text-secondary)", textTransform: "uppercase" }}>{item.label}</div>
-          <div style={{ fontSize: "15px", fontWeight: 600, marginTop: "4px" }}>{item.value} <span className={item.change.className} style={{ fontSize: "13px" }}>{item.change.text}</span></div>
+        <div key={item.label} className="card" style={{ padding: "10px 14px" }}>
+          <div style={{ fontSize: "11px", color: "var(--text-secondary)", textTransform: "uppercase" }}>{item.label}</div>
+          <div style={{ fontSize: "16px", fontWeight: 600, marginTop: "4px" }}>{item.value} <span className={item.change.className} style={{ fontSize: "14px" }}>{item.change.text}</span></div>
         </div>
       ))}
-      <div className="card" style={{ flex: 1, padding: "10px 14px" }}>
-        <div style={{ fontSize: "10px", color: "var(--text-secondary)", textTransform: "uppercase" }}>Fear / Greed</div>
-        <div className={fg.className} style={{ fontSize: "15px", fontWeight: 600, marginTop: "4px" }}>{fg.text}</div>
+      <div className="card" style={{ padding: "10px 14px" }}>
+        <div style={{ fontSize: "11px", color: "var(--text-secondary)", textTransform: "uppercase" }}>Fear / Greed</div>
+        <div className={fg.className} style={{ fontSize: "16px", fontWeight: 600, marginTop: "4px" }}>{fg.text}</div>
       </div>
     </div>
   );

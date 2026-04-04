@@ -68,6 +68,28 @@ const COMMON_TICKERS = [
 
 function extractTickers(text: string): string { return COMMON_TICKERS.filter((t) => text.includes(t)).join(","); }
 
+async function fetchPreMarketMovers(): Promise<Array<{ ticker: string; name: string; change_pct: number }>> {
+  console.log("Fetching pre-market movers...");
+  const movers: Array<{ ticker: string; name: string; change_pct: number }> = [];
+  const tickersToCheck = COMMON_TICKERS.slice(0, 40);
+  for (const ticker of tickersToCheck) {
+    try {
+      const data = await fetchJSON(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=1d&interval=1d&prepost=true`);
+      const meta = data.chart?.result?.[0]?.meta;
+      if (!meta) continue;
+      const prevClose = meta.chartPreviousClose ?? meta.previousClose;
+      const currentPrice = meta.regularMarketPrice ?? prevClose;
+      if (prevClose && currentPrice) {
+        const change = ((currentPrice - prevClose) / prevClose) * 100;
+        if (Math.abs(change) >= 2) {
+          movers.push({ ticker, name: meta.shortName ?? ticker, change_pct: change });
+        }
+      }
+    } catch (e) { /* skip */ }
+  }
+  return movers.sort((a, b) => Math.abs(b.change_pct) - Math.abs(a.change_pct)).slice(0, 10);
+}
+
 async function fetchMarketData() {
   console.log("Fetching market indices...");
   const symbols = ["^GSPC","^IXIC","^DJI","^VIX"];
@@ -221,8 +243,8 @@ async function fetchEarningsCalendar(): Promise<Array<{ ticker: string; name: st
 async function main() {
   console.log(`=== GroovyDruvy Data Pipeline — ${now()} ===\n`);
 
-  const [marketData, fearGreed, finnhubNews, rssNews, hackerNews, redditTrending, analystPicks, earningsCalendar] = await Promise.all([
-    fetchMarketData(), fetchFearGreed(), fetchFinnhubNews(), fetchRSSNews(), fetchHackerNews(), fetchRedditTrending(), fetchAnalystPicks(), fetchEarningsCalendar(),
+  const [marketData, fearGreed, finnhubNews, rssNews, hackerNews, redditTrending, analystPicks, earningsCalendar, preMarketMovers] = await Promise.all([
+    fetchMarketData(), fetchFearGreed(), fetchFinnhubNews(), fetchRSSNews(), fetchHackerNews(), fetchRedditTrending(), fetchAnalystPicks(), fetchEarningsCalendar(), fetchPreMarketMovers(),
   ]);
 
   // Get watchlist
@@ -247,8 +269,54 @@ async function main() {
     // Market summary
     const allNews = [...finnhubNews, ...rssNews, ...hackerNews];
     const recap = allNews.slice(0, 5).map((a) => a.title).join(". ") || "No recap available.";
-    const earningsTkrs = earningsCalendar.slice(0, 3).map((entry) => entry.ticker).join(", ");
-    const outlook = earningsTkrs ? `Earnings to watch: ${earningsTkrs}` : "No major earnings today.";
+    // Build rich outlook
+    const outlookParts: string[] = [];
+
+    // Pre-market movers
+    if (preMarketMovers.length > 0) {
+      const moverLines = preMarketMovers.slice(0, 5).map((m) => {
+        const dir = m.change_pct >= 0 ? "+" : "";
+        return `${m.ticker} ${dir}${m.change_pct.toFixed(1)}%`;
+      });
+      outlookParts.push(`PRE-MARKET MOVERS: ${moverLines.join(" | ")}`);
+    }
+
+    // Earnings today/this week
+    const todayEarnings = earningsCalendar.filter((e) => e.earnings_date === today());
+    const weekEarnings = earningsCalendar.filter((e) => e.earnings_date !== today());
+    if (todayEarnings.length > 0) {
+      outlookParts.push(`EARNINGS TODAY: ${todayEarnings.map((e) => e.ticker).join(", ")}`);
+    }
+    if (weekEarnings.length > 0) {
+      outlookParts.push(`EARNINGS THIS WEEK: ${weekEarnings.slice(0, 5).map((e) => `${e.ticker} (${e.earnings_date})`).join(", ")}`);
+    }
+
+    // Watchlist alerts
+    const watchlistAlerts: string[] = [];
+    for (const wTicker of watchlistTickers) {
+      const stockInfo = stockData.find((s) => s.ticker === wTicker);
+      const tech = technicals[wTicker];
+      if (tech?.rsi !== null && tech?.rsi !== undefined) {
+        if (tech.rsi < 30) watchlistAlerts.push(`${wTicker} RSI ${tech.rsi.toFixed(0)} (oversold)`);
+        else if (tech.rsi > 70) watchlistAlerts.push(`${wTicker} RSI ${tech.rsi.toFixed(0)} (overbought)`);
+      }
+      if (stockInfo && Math.abs(stockInfo.change_pct) >= 3) {
+        const dir = stockInfo.change_pct >= 0 ? "+" : "";
+        watchlistAlerts.push(`${wTicker} ${dir}${stockInfo.change_pct.toFixed(1)}% yesterday`);
+      }
+      const analystInfo = analystPicks.find((p) => p.ticker === wTicker);
+      if (analystInfo) watchlistAlerts.push(`${wTicker}: ${analystInfo.reason}`);
+    }
+    if (watchlistAlerts.length > 0) {
+      outlookParts.push(`WATCHLIST ALERTS: ${watchlistAlerts.join(" | ")}`);
+    }
+
+    // Reddit buzz
+    if (redditTrending.length > 0) {
+      outlookParts.push(`TRENDING ON REDDIT: ${redditTrending.slice(0, 5).join(", ")}`);
+    }
+
+    const outlook = outlookParts.length > 0 ? outlookParts.join("\n\n") : "No major events today.";
     await client.query(
       `INSERT INTO market_summary (date, sp500, sp500_change, nasdaq, nasdaq_change, dow, dow_change, vix, fear_greed, recap, outlook) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (date) DO UPDATE SET sp500=$2, sp500_change=$3, nasdaq=$4, nasdaq_change=$5, dow=$6, dow_change=$7, vix=$8, fear_greed=$9, recap=$10, outlook=$11`,
       [today(), marketData.sp500, marketData.sp500_change, marketData.nasdaq, marketData.nasdaq_change, marketData.dow, marketData.dow_change, marketData.vix, fearGreed, recap, outlook]

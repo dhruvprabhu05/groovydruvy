@@ -164,7 +164,7 @@ async function main() {
     // Market summary
     const allNews = [...finnhubNews, ...rssNews];
     const recap = allNews.slice(0, 5).map((a) => a.title).join(". ") || "No recap available.";
-    const earningsTkrs = earningsCalendar.slice(0, 3).map((e) => e.ticker).join(", ");
+    const earningsTkrs = earningsCalendar.slice(0, 3).map((entry) => entry.ticker).join(", ");
     const outlook = earningsTkrs ? `Earnings to watch: ${earningsTkrs}` : "No major earnings today.";
     await client.query(
       `INSERT INTO market_summary (date, sp500, sp500_change, nasdaq, nasdaq_change, dow, dow_change, vix, fear_greed, recap, outlook) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (date) DO UPDATE SET sp500=$2, sp500_change=$3, nasdaq=$4, nasdaq_change=$5, dow=$6, dow_change=$7, vix=$8, fear_greed=$9, recap=$10, outlook=$11`,

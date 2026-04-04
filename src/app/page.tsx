@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getLatestMarketSummary, getArticles, getRecommendedStocks, getWatchlistStocks, getUpcomingEarnings } from "@/lib/db";
 import MarketSummaryBar from "@/components/MarketSummaryBar";
 import RecapWidget from "@/components/RecapWidget";

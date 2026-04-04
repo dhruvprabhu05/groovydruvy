@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { notFound } from "next/navigation";
 import { getStockByTicker, getArticlesForTicker, getEarningsForTicker, isInWatchlist } from "@/lib/db";
 import TickerHeader from "@/components/TickerHeader";

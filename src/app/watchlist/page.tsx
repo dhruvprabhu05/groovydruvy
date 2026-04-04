@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getWatchlist, getWatchlistStocks } from "@/lib/db";
 import Link from "next/link";
 import WatchlistActions from "./WatchlistActions";

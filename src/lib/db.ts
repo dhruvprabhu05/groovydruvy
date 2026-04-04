@@ -64,7 +64,7 @@ export async function getLatestMarketSummary(): Promise<MarketSummary | null> {
 
 export async function getArticles(): Promise<Article[]> {
   const { rows } = await sql`SELECT DISTINCT ON (url) * FROM articles WHERE published_at >= NOW() - INTERVAL '3 weeks' ORDER BY url, published_at DESC`;
-  return (rows as Article[]).sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime()).slice(0, 50);
+  return (rows as Article[]).sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime()).slice(0, 100);
 }
 
 export async function getRecommendedStocks(): Promise<Stock[]> {

@@ -21,16 +21,17 @@ const SECTOR_KEYWORDS: Record<string, string[]> = {
   tech: ["tech", "AI", "artificial intelligence", "semiconductor", "chip", "software", "SaaS", "cloud", "NVIDIA", "AAPL", "MSFT", "GOOGL", "META", "AMZN", "TSLA", "cyber", "data center", "machine learning", "robotics", "5G", "quantum"],
   finance: ["bank", "fed", "interest rate", "inflation", "treasury", "financial", "JPM", "GS", "fintech", "lending", "mortgage", "credit", "loan", "hedge fund", "private equity", "IPO", "SEC", "Wall Street"],
   crypto: ["bitcoin", "crypto", "ethereum", "BTC", "ETH", "blockchain", "defi", "stablecoin", "altcoin", "NFT", "web3", "solana", "XRP", "dogecoin"],
-  healthcare: ["health", "pharma", "biotech", "FDA", "drug", "medical", "hospital", "vaccine", "clinical trial", "therapeutics", "JNJ", "PFE", "UNH", "ABBV", "MRK", "LLY"],
-  energy: ["oil", "gas", "energy", "solar", "wind", "renewable", "EV", "battery", "nuclear", "OPEC", "petroleum", "XOM", "CVX", "NEE", "ENPH"],
-  realestate: ["real estate", "housing", "mortgage", "REIT", "property", "rent", "commercial real estate", "home sales", "construction"],
-  consumer: ["retail", "consumer", "e-commerce", "Amazon", "Walmart", "Target", "spending", "shopping", "WMT", "TGT", "COST", "NKE", "SBUX", "MCD"],
+  healthcare: ["health", "pharma", "biotech", "FDA", "drug", "medical", "hospital", "vaccine", "clinical trial", "therapeutics", "JNJ", "PFE", "UNH", "ABBV", "MRK", "LLY", "patient", "treatment", "disease", "cancer", "diabetes", "obesity", "weight loss", "Ozempic", "Wegovy", "insurance", "Medicare", "Medicaid"],
+  energy: ["oil", "gas", "energy", "solar", "wind", "renewable", "EV", "battery", "nuclear", "OPEC", "petroleum", "XOM", "CVX", "NEE", "ENPH", "electric vehicle", "charging", "grid", "power", "utility", "fossil fuel", "carbon", "emission", "climate", "drilling", "pipeline"],
+  realestate: ["real estate", "housing", "mortgage", "REIT", "property", "rent", "commercial real estate", "home sales", "construction", "home price", "interest rate", "housing market", "apartment", "office space", "vacancy", "landlord", "tenant", "foreclosure"],
+  consumer: ["retail", "consumer", "e-commerce", "Amazon", "Walmart", "Target", "spending", "shopping", "WMT", "TGT", "COST", "NKE", "SBUX", "MCD", "grocery", "restaurant", "food", "apparel", "luxury", "brand", "store", "mall", "Black Friday", "holiday sales", "consumer confidence", "discretionary"],
 };
 
 const TYPE_KEYWORDS: Record<string, string[]> = {
-  earnings: ["earnings", "revenue", "profit", "EPS", "quarterly results", "beats", "misses"],
-  analyst: ["upgrade", "downgrade", "analyst", "price target", "rating"],
-  movers: ["surge", "plunge", "soar", "crash", "rally", "tank", "spike"],
+  earnings: ["earnings", "revenue", "profit", "EPS", "quarterly results", "beats", "misses", "guidance", "forecast", "outlook", "report card", "bottom line", "top line", "fiscal", "income"],
+  analyst: ["upgrade", "downgrade", "analyst", "price target", "rating", "overweight", "underweight", "outperform", "underperform", "buy rating", "sell rating", "hold rating", "initiates coverage", "raises target", "cuts target", "bull case", "bear case"],
+  movers: ["surge", "plunge", "soar", "crash", "rally", "tank", "spike", "tumble", "jump", "drop", "climb", "slide", "skyrocket", "plummet", "gain", "loss", "record high", "record low", "all-time", "selloff", "sell-off", "breakout", "melt"],
+  trending: ["viral", "buzz", "hype", "frenzy", "mania", "meme stock", "short squeeze", "trending", "popular", "hot stock", "most watched", "most active"],
 };
 
 function classifySector(text: string): string {
@@ -116,7 +117,7 @@ async function fetchHackerNews(): Promise<Array<{ title: string; summary: string
   try {
     const ids = await fetchJSON("https://hacker-news.firebaseio.com/v0/topstories.json");
     const stories = [];
-    for (const id of ids.slice(0, 15)) {
+    for (const id of ids.slice(0, 25)) {
       try {
         const item = await fetchJSON(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
         if (item && item.title && item.url) {
@@ -137,19 +138,32 @@ async function fetchFinnhubNews() {
 async function fetchRSSNews() {
   console.log("Fetching RSS feeds...");
   const feeds = [
+    // General market & finance
     { url: "https://feeds.marketwatch.com/marketwatch/topstories/", source: "MarketWatch" },
-    { url: "https://feeds.feedburner.com/TechCrunch/", source: "TechCrunch" },
     { url: "https://www.cnbc.com/id/100003114/device/rss/rss.html", source: "CNBC" },
     { url: "https://finance.yahoo.com/news/rssheadlines", source: "Yahoo Finance" },
+    { url: "https://feeds.bbci.co.uk/news/business/rss.xml", source: "BBC Business" },
+    // Tech
+    { url: "https://feeds.feedburner.com/TechCrunch/", source: "TechCrunch" },
     { url: "https://feeds.arstechnica.com/arstechnica/index", source: "Ars Technica" },
     { url: "https://www.theverge.com/rss/index.xml", source: "The Verge" },
+    // Crypto
     { url: "https://www.coindesk.com/arc/outboundfeeds/rss/", source: "CoinDesk" },
-    { url: "https://rsshub.app/apnews/topics/business", source: "AP Business" },
-    { url: "https://feeds.bbci.co.uk/news/business/rss.xml", source: "BBC Business" },
+    { url: "https://cointelegraph.com/rss", source: "CoinTelegraph" },
+    // Healthcare
+    { url: "https://www.fiercepharma.com/rss/xml", source: "Fierce Pharma" },
+    { url: "https://www.statnews.com/feed/", source: "STAT News" },
+    // Energy
+    { url: "https://oilprice.com/rss/main", source: "OilPrice" },
+    { url: "https://electrek.co/feed/", source: "Electrek" },
+    // Consumer / retail
+    { url: "https://www.retaildive.com/feeds/news/", source: "Retail Dive" },
+    // Real estate
+    { url: "https://www.housingwire.com/feed/", source: "HousingWire" },
   ];
   const articles = [];
   for (const feed of feeds) {
-    try { const parsed = await rssParser.parseURL(feed.url); for (const item of parsed.items.slice(0, 10)) articles.push({ title: item.title ?? "Untitled", summary: (item.contentSnippet ?? item.content ?? "").slice(0, 300), url: item.link ?? "", source: feed.source, published_at: item.isoDate ?? now() }); }
+    try { const parsed = await rssParser.parseURL(feed.url); for (const item of parsed.items.slice(0, 15)) articles.push({ title: item.title ?? "Untitled", summary: (item.contentSnippet ?? item.content ?? "").slice(0, 300), url: item.link ?? "", source: feed.source, published_at: item.isoDate ?? now() }); }
     catch (e) { console.error(`RSS failed for ${feed.source}:`, e); }
   }
   return articles;

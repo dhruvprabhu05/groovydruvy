@@ -62,18 +62,8 @@ export async function getLatestMarketSummary(): Promise<MarketSummary | null> {
   return (rows[0] as MarketSummary) ?? null;
 }
 
-export async function getArticles(sector?: string, type?: string): Promise<Article[]> {
-  if (sector && sector !== "all" && type && type !== "all") {
-    const { rows } = await sql`SELECT * FROM articles WHERE sector = ${sector} AND type = ${type} ORDER BY published_at DESC LIMIT 50`;
-    return rows as Article[];
-  } else if (sector && sector !== "all") {
-    const { rows } = await sql`SELECT * FROM articles WHERE sector = ${sector} ORDER BY published_at DESC LIMIT 50`;
-    return rows as Article[];
-  } else if (type && type !== "all") {
-    const { rows } = await sql`SELECT * FROM articles WHERE type = ${type} ORDER BY published_at DESC LIMIT 50`;
-    return rows as Article[];
-  }
-  const { rows } = await sql`SELECT * FROM articles ORDER BY published_at DESC LIMIT 50`;
+export async function getArticles(): Promise<Article[]> {
+  const { rows } = await sql`SELECT * FROM articles WHERE published_at >= NOW() - INTERVAL '6 months' ORDER BY published_at DESC LIMIT 50`;
   return rows as Article[];
 }
 

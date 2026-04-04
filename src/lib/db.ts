@@ -63,7 +63,7 @@ export async function getLatestMarketSummary(): Promise<MarketSummary | null> {
 }
 
 export async function getArticles(): Promise<Article[]> {
-  const { rows } = await sql`SELECT * FROM articles WHERE published_at >= NOW() - INTERVAL '6 months' ORDER BY published_at DESC LIMIT 50`;
+  const { rows } = await sql`SELECT * FROM articles WHERE published_at >= NOW() - INTERVAL '3 weeks' ORDER BY published_at DESC LIMIT 50`;
   return rows as Article[];
 }
 

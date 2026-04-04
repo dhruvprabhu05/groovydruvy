@@ -93,6 +93,23 @@ async function fetchTechnicalIndicators(ticker: string) {
   return result;
 }
 
+async function fetchHackerNews(): Promise<Array<{ title: string; summary: string; url: string; source: string; published_at: string }>> {
+  console.log("Fetching Hacker News top stories...");
+  try {
+    const ids = await fetchJSON("https://hacker-news.firebaseio.com/v0/topstories.json");
+    const stories = [];
+    for (const id of ids.slice(0, 15)) {
+      try {
+        const item = await fetchJSON(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
+        if (item && item.title && item.url) {
+          stories.push({ title: item.title, summary: "", url: item.url, source: "Hacker News", published_at: new Date(item.time * 1000).toISOString() });
+        }
+      } catch (e) { /* skip individual story errors */ }
+    }
+    return stories;
+  } catch (e) { console.error("Hacker News failed:", e); return []; }
+}
+
 async function fetchFinnhubNews() {
   console.log("Fetching Finnhub news...");
   try { const data = await fetchJSON(`https://finnhub.io/api/v1/news?category=general&token=${FINNHUB_KEY}`); return data.slice(0, 30).map((item: any) => ({ title: item.headline, summary: item.summary?.slice(0, 300) ?? "", url: item.url, source: item.source, published_at: new Date(item.datetime * 1000).toISOString() })); }
@@ -101,7 +118,17 @@ async function fetchFinnhubNews() {
 
 async function fetchRSSNews() {
   console.log("Fetching RSS feeds...");
-  const feeds = [{ url: "https://feeds.reuters.com/reuters/businessNews", source: "Reuters" }, { url: "https://feeds.marketwatch.com/marketwatch/topstories/", source: "MarketWatch" }, { url: "https://feeds.feedburner.com/TechCrunch/", source: "TechCrunch" }, { url: "https://feeds.seekingalpha.com/market_currents.xml", source: "Seeking Alpha" }];
+  const feeds = [
+    { url: "https://feeds.marketwatch.com/marketwatch/topstories/", source: "MarketWatch" },
+    { url: "https://feeds.feedburner.com/TechCrunch/", source: "TechCrunch" },
+    { url: "https://www.cnbc.com/id/100003114/device/rss/rss.html", source: "CNBC" },
+    { url: "https://finance.yahoo.com/news/rssheadlines", source: "Yahoo Finance" },
+    { url: "https://feeds.arstechnica.com/arstechnica/index", source: "Ars Technica" },
+    { url: "https://www.theverge.com/rss/index.xml", source: "The Verge" },
+    { url: "https://www.coindesk.com/arc/outboundfeeds/rss/", source: "CoinDesk" },
+    { url: "https://rsshub.app/apnews/topics/business", source: "AP Business" },
+    { url: "https://feeds.bbci.co.uk/news/business/rss.xml", source: "BBC Business" },
+  ];
   const articles = [];
   for (const feed of feeds) {
     try { const parsed = await rssParser.parseURL(feed.url); for (const item of parsed.items.slice(0, 10)) articles.push({ title: item.title ?? "Untitled", summary: (item.contentSnippet ?? item.content ?? "").slice(0, 300), url: item.link ?? "", source: feed.source, published_at: item.isoDate ?? now() }); }
@@ -138,8 +165,8 @@ async function fetchEarningsCalendar(): Promise<Array<{ ticker: string; name: st
 async function main() {
   console.log(`=== GroovyDruvy Data Pipeline — ${now()} ===\n`);
 
-  const [marketData, fearGreed, finnhubNews, rssNews, redditTrending, analystPicks, earningsCalendar] = await Promise.all([
-    fetchMarketData(), fetchFearGreed(), fetchFinnhubNews(), fetchRSSNews(), fetchRedditTrending(), fetchAnalystPicks(), fetchEarningsCalendar(),
+  const [marketData, fearGreed, finnhubNews, rssNews, hackerNews, redditTrending, analystPicks, earningsCalendar] = await Promise.all([
+    fetchMarketData(), fetchFearGreed(), fetchFinnhubNews(), fetchRSSNews(), fetchHackerNews(), fetchRedditTrending(), fetchAnalystPicks(), fetchEarningsCalendar(),
   ]);
 
   // Get watchlist
@@ -162,7 +189,7 @@ async function main() {
     await client.query("DELETE FROM earnings_calendar WHERE earnings_date < CURRENT_DATE");
 
     // Market summary
-    const allNews = [...finnhubNews, ...rssNews];
+    const allNews = [...finnhubNews, ...rssNews, ...hackerNews];
     const recap = allNews.slice(0, 5).map((a) => a.title).join(". ") || "No recap available.";
     const earningsTkrs = earningsCalendar.slice(0, 3).map((entry) => entry.ticker).join(", ");
     const outlook = earningsTkrs ? `Earnings to watch: ${earningsTkrs}` : "No major earnings today.";

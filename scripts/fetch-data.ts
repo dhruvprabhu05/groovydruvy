@@ -248,10 +248,14 @@ async function main() {
 
     // Articles
     for (const article of allNews) {
-      const fullText = article.title + " " + article.summary;
+      const title = typeof article.title === "string" ? article.title : String(article.title ?? "");
+      const summary = typeof article.summary === "string" ? article.summary : String(article.summary ?? "");
+      const url = typeof article.url === "string" ? article.url : String(article.url ?? "");
+      if (!title || !url) continue;
+      const fullText = title + " " + summary;
       await client.query(
         `INSERT INTO articles (id, title, summary, url, source, sector, type, tickers, published_at, fetched_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT (id) DO NOTHING`,
-        [uuid(), article.title, article.summary, article.url, article.source, classifySector(fullText), classifyType(fullText), extractTickers(fullText), article.published_at, now()]
+        [uuid(), title.slice(0, 500), summary.slice(0, 300), url, article.source, classifySector(fullText), classifyType(fullText), extractTickers(fullText), article.published_at, now()]
       );
     }
 

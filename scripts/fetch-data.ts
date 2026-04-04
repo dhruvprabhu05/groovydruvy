@@ -129,7 +129,7 @@ async function fetchAnalystPicks() {
   return picks;
 }
 
-async function fetchEarningsCalendar() {
+async function fetchEarningsCalendar(): Promise<Array<{ ticker: string; name: string; earnings_date: string; estimate_eps: number | null }>> {
   console.log("Fetching earnings calendar...");
   try { const from = today(); const to = new Date(Date.now() + 14 * 86400000).toISOString().split("T")[0]; const data = await fetchJSON(`https://finnhub.io/api/v1/calendar/earnings?from=${from}&to=${to}&token=${FINNHUB_KEY}`); return (data.earningsCalendar ?? []).slice(0, 20).map((item: any) => ({ ticker: item.symbol, name: item.symbol, earnings_date: item.date, estimate_eps: item.epsEstimate ?? null })); }
   catch (e) { console.error("Earnings calendar failed:", e); return []; }

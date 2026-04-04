@@ -163,7 +163,15 @@ async function fetchRSSNews() {
   ];
   const articles = [];
   for (const feed of feeds) {
-    try { const parsed = await rssParser.parseURL(feed.url); for (const item of parsed.items.slice(0, 15)) articles.push({ title: item.title ?? "Untitled", summary: (item.contentSnippet ?? item.content ?? "").slice(0, 300), url: item.link ?? "", source: feed.source, published_at: item.isoDate ?? now() }); }
+    try {
+      const parsed = await rssParser.parseURL(feed.url);
+      for (const item of parsed.items.slice(0, 15)) {
+        const t = typeof item.title === "string" ? item.title.trim() : "";
+        const s = typeof item.contentSnippet === "string" ? item.contentSnippet.slice(0, 300) : typeof item.content === "string" ? item.content.slice(0, 300) : "";
+        const u = typeof item.link === "string" ? item.link : "";
+        if (t && u) articles.push({ title: t, summary: s, url: u, source: feed.source, published_at: item.isoDate ?? now() });
+      }
+    }
     catch (e) { console.error(`RSS failed for ${feed.source}:`, e); }
   }
   return articles;

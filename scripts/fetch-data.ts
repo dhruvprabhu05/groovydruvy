@@ -165,11 +165,27 @@ async function fetchRedditTrending(): Promise<string[]> {
   return Object.entries(tickerMentions).filter(([_, c]) => c >= 3).sort((a, b) => b[1] - a[1]).map(([t]) => t);
 }
 
-async function fetchAnalystPicks() {
+async function fetchAnalystPicks(): Promise<Array<{ ticker: string; reason: string }>> {
   console.log("Fetching analyst recommendations...");
-  const picks = [];
-  for (const ticker of COMMON_TICKERS.slice(0, 20)) {
-    try { const data = await fetchJSON(`https://finnhub.io/api/v1/stock/recommendation?symbol=${ticker}&token=${FINNHUB_KEY}`); if (data.length > 0 && data[0].strongBuy + data[0].buy > data[0].sell + data[0].strongSell) picks.push({ ticker, firm: "Consensus" }); } catch (e) {}
+  const picks: Array<{ ticker: string; reason: string }> = [];
+  for (const ticker of COMMON_TICKERS.slice(0, 30)) {
+    try {
+      const data = await fetchJSON(`https://finnhub.io/api/v1/stock/recommendation?symbol=${ticker}&token=${FINNHUB_KEY}`);
+      if (data.length < 2) continue;
+      const latest = data[0];
+      const previous = data[1];
+      const buys = latest.strongBuy + latest.buy;
+      const sells = latest.sell + latest.strongSell;
+      const prevBuys = previous.strongBuy + previous.buy;
+
+      // Only flag if: recent upgrade (more buys than last month) OR very strong consensus (3x+ buy vs sell)
+      if (buys > prevBuys && buys > sells) {
+        const newBuys = buys - prevBuys;
+        picks.push({ ticker, reason: `${newBuys} new Buy rating${newBuys > 1 ? "s" : ""} (${buys} Buy / ${latest.hold} Hold / ${sells} Sell)` });
+      } else if (sells > 0 && buys >= sells * 3) {
+        picks.push({ ticker, reason: `Strong consensus: ${buys} Buy / ${latest.hold} Hold / ${sells} Sell` });
+      }
+    } catch (e) {}
   }
   return picks;
 }
@@ -226,12 +242,12 @@ async function main() {
     }
 
     // Stocks
-    const analystSet = new Set(analystPicks.map((p) => p.ticker));
+    const analystMap = new Map(analystPicks.map((p) => [p.ticker, p.reason]));
     const redditSet = new Set(redditTrending);
     for (const stock of stockData) {
       const tech = technicals[stock.ticker] ?? { rsi: null, sma_20: null, sma_50: null };
       let signal: string | null = null; let signalReason: string | null = null;
-      if (analystSet.has(stock.ticker)) { signal = "analyst_pick"; signalReason = "Analyst consensus: Buy"; }
+      if (analystMap.has(stock.ticker)) { signal = "analyst_pick"; signalReason = analystMap.get(stock.ticker)!; }
       else if (redditSet.has(stock.ticker)) { signal = "trending"; signalReason = "Trending on Reddit"; }
       else if (stock.change_pct > 5) { signal = "momentum"; signalReason = `Up ${stock.change_pct.toFixed(1)}% today`; }
       await client.query(

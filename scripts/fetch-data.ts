@@ -3,7 +3,6 @@ import RssParser from "rss-parser";
 
 const rssParser = new RssParser();
 const FINNHUB_KEY = process.env.FINNHUB_API_KEY ?? "";
-const ALPHA_VANTAGE_KEY = process.env.ALPHA_VANTAGE_API_KEY ?? "";
 
 const pool = new Pool({ connectionString: process.env.POSTGRES_URL });
 
@@ -111,6 +110,26 @@ async function fetchFearGreed(): Promise<number> {
   catch (e) { console.error("Failed:", e); return 50; }
 }
 
+function calculateRSI(closes: number[], period: number = 14): number | null {
+  if (closes.length < period + 1) return null;
+  const recent = closes.slice(-(period + 1));
+  let gains = 0, losses = 0;
+  for (let i = 1; i < recent.length; i++) {
+    const diff = recent[i] - recent[i - 1];
+    if (diff > 0) gains += diff; else losses -= diff;
+  }
+  const avgGain = gains / period;
+  const avgLoss = losses / period;
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return 100 - 100 / (1 + rs);
+}
+
+function calculateSMA(closes: number[], period: number): number | null {
+  if (closes.length < period) return null;
+  return closes.slice(-period).reduce((a, b) => a + b, 0) / period;
+}
+
 async function fetchStockData(tickers: string[]) {
   console.log(`Fetching stock data for ${tickers.length} tickers...`);
   const results = [];
@@ -118,21 +137,24 @@ async function fetchStockData(tickers: string[]) {
     try {
       const data = await fetchJSON(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=1y&interval=1d`);
       const meta = data.chart.result[0].meta; const quotes = data.chart.result[0].indicators.quote[0];
-      const closes = quotes.close.filter((c: any) => c !== null); const current = closes[closes.length - 1]; const previous = closes.length > 1 ? closes[closes.length - 2] : current;
-      const volumes = quotes.volume.filter((v: any) => v !== null);
-      results.push({ ticker, name: meta.shortName ?? meta.symbol ?? ticker, price: current, change_pct: ((current - previous) / previous) * 100, volume: volumes[volumes.length - 1] ?? 0, high_52w: Math.max(...closes), low_52w: Math.min(...closes) });
+      const closes: number[] = quotes.close.filter((c: any) => c !== null); const current = closes[closes.length - 1]; const previous = closes.length > 1 ? closes[closes.length - 2] : current;
+      const volumes: number[] = quotes.volume.filter((v: any) => v !== null);
+      results.push({
+        ticker, name: meta.shortName ?? meta.symbol ?? ticker,
+        price: current, change_pct: ((current - previous) / previous) * 100,
+        volume: volumes[volumes.length - 1] ?? 0,
+        high_52w: Math.max(...closes), low_52w: Math.min(...closes),
+        rsi: calculateRSI(closes),
+        sma_20: calculateSMA(closes, 20),
+        sma_50: calculateSMA(closes, 50),
+      });
     } catch (e) { console.error(`Failed to fetch ${ticker}:`, e); }
   }
   return results;
 }
 
-async function fetchTechnicalIndicators(ticker: string) {
-  const result = { rsi: null as number | null, sma_20: null as number | null, sma_50: null as number | null };
-  try { const d = await fetchJSON(`https://www.alphavantage.co/query?function=RSI&symbol=${ticker}&interval=daily&time_period=14&series_type=close&apikey=${ALPHA_VANTAGE_KEY}`); const v = Object.values(d["Technical Analysis: RSI"] ?? {}) as any[]; if (v.length > 0) result.rsi = parseFloat(v[0].RSI); } catch (e) {}
-  try { const d = await fetchJSON(`https://www.alphavantage.co/query?function=SMA&symbol=${ticker}&interval=daily&time_period=20&series_type=close&apikey=${ALPHA_VANTAGE_KEY}`); const v = Object.values(d["Technical Analysis: SMA"] ?? {}) as any[]; if (v.length > 0) result.sma_20 = parseFloat(v[0].SMA); } catch (e) {}
-  try { const d = await fetchJSON(`https://www.alphavantage.co/query?function=SMA&symbol=${ticker}&interval=daily&time_period=50&series_type=close&apikey=${ALPHA_VANTAGE_KEY}`); const v = Object.values(d["Technical Analysis: SMA"] ?? {}) as any[]; if (v.length > 0) result.sma_50 = parseFloat(v[0].SMA); } catch (e) {}
-  return result;
-}
+// Technical indicators (RSI, SMA) are now calculated directly from Yahoo Finance
+// historical data in fetchStockData() — no separate Alpha Vantage calls needed.
 
 async function fetchHackerNews(): Promise<Array<{ title: string; summary: string; url: string; source: string; published_at: string }>> {
   console.log("Fetching Hacker News top stories...");
@@ -254,9 +276,6 @@ async function main() {
   const allTickers = [...new Set([...watchlistTickers, ...redditTrending.slice(0, 20), ...analystPicks.map((p) => p.ticker)])];
   const stockData = await fetchStockData(allTickers);
 
-  const technicals: Record<string, { rsi: number | null; sma_20: number | null; sma_50: number | null }> = {};
-  for (const ticker of watchlistTickers.slice(0, 8)) { technicals[ticker] = await fetchTechnicalIndicators(ticker); await new Promise((r) => setTimeout(r, 12000)); }
-
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -295,10 +314,9 @@ async function main() {
     const watchlistAlerts: string[] = [];
     for (const wTicker of watchlistTickers) {
       const stockInfo = stockData.find((s) => s.ticker === wTicker);
-      const tech = technicals[wTicker];
-      if (tech?.rsi !== null && tech?.rsi !== undefined) {
-        if (tech.rsi < 30) watchlistAlerts.push(`${wTicker} RSI ${tech.rsi.toFixed(0)} (oversold)`);
-        else if (tech.rsi > 70) watchlistAlerts.push(`${wTicker} RSI ${tech.rsi.toFixed(0)} (overbought)`);
+      if (stockInfo?.rsi != null) {
+        if (stockInfo.rsi < 30) watchlistAlerts.push(`${wTicker} RSI ${stockInfo.rsi.toFixed(0)} (oversold)`);
+        else if (stockInfo.rsi > 70) watchlistAlerts.push(`${wTicker} RSI ${stockInfo.rsi.toFixed(0)} (overbought)`);
       }
       if (stockInfo && Math.abs(stockInfo.change_pct) >= 3) {
         const dir = stockInfo.change_pct >= 0 ? "+" : "";
@@ -339,14 +357,13 @@ async function main() {
     const analystMap = new Map(analystPicks.map((p) => [p.ticker, p.reason]));
     const redditSet = new Set(redditTrending);
     for (const stock of stockData) {
-      const tech = technicals[stock.ticker] ?? { rsi: null, sma_20: null, sma_50: null };
       let signal: string | null = null; let signalReason: string | null = null;
       if (analystMap.has(stock.ticker)) { signal = "analyst_pick"; signalReason = analystMap.get(stock.ticker)!; }
       else if (redditSet.has(stock.ticker)) { signal = "trending"; signalReason = "Trending on Reddit"; }
       else if (stock.change_pct > 5) { signal = "momentum"; signalReason = `Up ${stock.change_pct.toFixed(1)}% today`; }
       await client.query(
         `INSERT INTO stocks (id, ticker, name, price, change_pct, volume, rsi, sma_20, sma_50, high_52w, low_52w, signal, signal_reason, date) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) ON CONFLICT (id) DO UPDATE SET price=$4, change_pct=$5, volume=$6, rsi=$7, sma_20=$8, sma_50=$9, high_52w=$10, low_52w=$11, signal=$12, signal_reason=$13`,
-        [uuid(), stock.ticker, stock.name, stock.price, stock.change_pct, stock.volume, tech.rsi, tech.sma_20, tech.sma_50, stock.high_52w, stock.low_52w, signal, signalReason, today()]
+        [uuid(), stock.ticker, stock.name, stock.price, stock.change_pct, stock.volume, stock.rsi, stock.sma_20, stock.sma_50, stock.high_52w, stock.low_52w, signal, signalReason, today()]
       );
     }
 

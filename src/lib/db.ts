@@ -77,9 +77,33 @@ export async function getWatchlist(): Promise<WatchlistItem[]> {
   return rows as WatchlistItem[];
 }
 
-export async function getWatchlistStocks(): Promise<Stock[]> {
-  const { rows } = await sql`SELECT DISTINCT ON (s.ticker) s.* FROM stocks s INNER JOIN watchlist w ON s.ticker = w.ticker ORDER BY s.ticker, s.date DESC`;
-  return rows as Stock[];
+export async function getWatchlistStocks(): Promise<(Stock & { in_watchlist: boolean })[]> {
+  const { rows } = await sql`
+    SELECT DISTINCT ON (w.ticker)
+      w.ticker AS w_ticker,
+      w.name AS w_name,
+      s.*
+    FROM watchlist w
+    LEFT JOIN stocks s ON s.ticker = w.ticker
+    ORDER BY w.ticker, s.date DESC NULLS LAST
+  `;
+  return rows.map((r: any) => ({
+    id: r.id ?? r.w_ticker,
+    ticker: r.w_ticker,
+    name: r.name ?? r.w_name,
+    price: r.price ?? null,
+    change_pct: r.change_pct ?? null,
+    volume: r.volume ?? null,
+    rsi: r.rsi ?? null,
+    sma_20: r.sma_20 ?? null,
+    sma_50: r.sma_50 ?? null,
+    high_52w: r.high_52w ?? null,
+    low_52w: r.low_52w ?? null,
+    signal: r.signal ?? null,
+    signal_reason: r.signal_reason ?? null,
+    date: r.date ?? new Date().toISOString().split("T")[0],
+    in_watchlist: true,
+  }));
 }
 
 export async function addToWatchlist(ticker: string, name: string): Promise<void> {

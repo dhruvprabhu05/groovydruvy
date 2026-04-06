@@ -9,10 +9,23 @@ export default function WatchlistWidget({ stocks }: { stocks: Stock[] }) {
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           {stocks.map((stock) => (
             <Link key={stock.ticker} href={`/stock/${stock.ticker}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", borderRadius: "4px", background: "rgba(255,255,255,0.03)" }}>
-              <span style={{ fontWeight: 600, fontSize: "13px" }}>{stock.ticker}</span>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <span style={{ fontWeight: 600, fontSize: "13px" }}>{stock.ticker}</span>
+                {stock.name && stock.name !== stock.ticker && (
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{stock.name}</span>
+                )}
+              </div>
               <div style={{ textAlign: "right" }}>
-                <span style={{ fontSize: "13px" }}>${stock.price?.toFixed(2) ?? "—"} </span>
-                <span className={stock.change_pct !== null && stock.change_pct >= 0 ? "positive" : "negative"} style={{ fontSize: "12px" }}>{stock.change_pct !== null ? `${stock.change_pct >= 0 ? "+" : ""}${stock.change_pct.toFixed(1)}%` : ""}</span>
+                {stock.price != null ? (
+                  <>
+                    <span style={{ fontSize: "13px" }}>${stock.price.toFixed(2)} </span>
+                    <span className={stock.change_pct !== null && stock.change_pct >= 0 ? "positive" : "negative"} style={{ fontSize: "12px" }}>
+                      {stock.change_pct !== null ? `${stock.change_pct >= 0 ? "+" : ""}${stock.change_pct.toFixed(1)}%` : ""}
+                    </span>
+                  </>
+                ) : (
+                  <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Awaiting data...</span>
+                )}
               </div>
             </Link>
           ))}
